@@ -3,28 +3,42 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sb
 
-# Load your dataset (replace with actual file path or uploader)
-df = pd.read_csv("mutual_funds_india.csv")  # Update with your file name
+st.title("🇮🇳 Mutual Fund 1-Year Return Visualizer")
 
-st.title("Mutual Fund Return Visualizer")
+# Load dataset from file
+try:
+    df = pd.read_csv("mutual_funds_india.csv")
+except FileNotFoundError:
+    st.error("❌ File 'mutual_funds_india.csv' not found. Please make sure it's in the same folder as this app.")
+    st.stop()
 
-# Unique categories
-categories = df['category'].dropna().unique()
-selected_category = st.selectbox("Select Category:", sorted(categories))
+# Required columns
+required_cols = ['category', 'AMC_name', 'Mutual Fund Name', 'return_1yr']
 
-# Filter based on category
-df_cat = df[df['category'] == selected_category]
+# Validate columns
+if not all(col in df.columns for col in required_cols):
+    st.error(f"Dataset must contain the following columns: {required_cols}")
+    st.stop()
 
-# Unique AMC names for the selected category
-amc_names = df_cat['AMC_name'].dropna().unique()
-selected_amc = st.selectbox("Select AMC Name:", sorted(amc_names))
+# Clean data
+df = df.dropna(subset=required_cols)
+df['return_1yr'] = pd.to_numeric(df['return_1yr'], errors='coerce')
+df = df.dropna(subset=['return_1yr'])
 
-# Filter based on AMC
-df_filtered = df_cat[df_cat['AMC_name'] == selected_amc]
+# Sidebar filters
+selected_category = st.selectbox("Select Category", sorted(df['category'].unique()))
+df_category = df[df['category'] == selected_category]
+
+selected_amc = st.selectbox("Select AMC", sorted(df_category['AMC_name'].unique()))
+df_filtered = df_category[df_category['AMC_name'] == selected_amc]
 
 # Plot
-st.subheader(f"1-Year Returns for Mutual Funds in {selected_amc} ({selected_category})")
-fig, ax = plt.subplots(figsize=(12, 6))
-sb.barplot(data=df_filtered, x='MutualFundName', y='return_1yr', palette='hot', ax=ax)
-plt.xticks(rotation=90)
-st.pyplot(fig)
+if df_filtered.empty:
+    st.warning("No mutual funds found for this combination.")
+else:
+    st.subheader(f"1-Year Returns for '{selected_amc}' in '{selected_category}'")
+    fig, ax = plt.subplots(figsize=(12, 6))
+    sb.barplot(data=df_filtered, x='Mutual Fund Name', y='return_1yr', palette='hot', ax=ax)
+    plt.xticks(rotation=90)
+    plt.ylabel("Return (1 Year %)")
+    st.pyplot(fig)
