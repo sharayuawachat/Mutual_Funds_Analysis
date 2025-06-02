@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sb
 
-st.title("🇮🇳 Mutual Fund 1-Year Return Visualizer")
+st.title("Mutual Fund 1-Year Return Visualizer")
 
 # Load dataset from file
 try:
