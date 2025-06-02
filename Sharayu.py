@@ -3,42 +3,65 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sb
 
-st.title("Mutual Fund 1-Year Return Visualizer")
+# Page config
+st.set_page_config(page_title="Mutual Fund Visualizer", layout="wide")
 
-# Load dataset from file
-try:
+st.title("📊 Mutual Fund Return Explorer - India")
+
+# Load the dataset
+@st.cache_data
+def load_data():
     df = pd.read_csv("mutual_funds_india.csv")
-except FileNotFoundError:
-    st.error("❌ File 'mutual_funds_india.csv' not found. Please make sure it's in the same folder as this app.")
-    st.stop()
+    df = df.dropna(subset=['category', 'AMC_name', 'Mutual Fund Name', 'return_1yr'])
+    df['return_1yr'] = pd.to_numeric(df['return_1yr'], errors='coerce')
+    df = df.dropna(subset=['return_1yr'])
+    return df
 
-# Required columns
-required_cols = ['category', 'AMC_name', 'Mutual Fund Name', 'return_1yr']
-
-# Validate columns
-if not all(col in df.columns for col in required_cols):
-    st.error(f"Dataset must contain the following columns: {required_cols}")
-    st.stop()
-
-# Clean data
-df = df.dropna(subset=required_cols)
-df['return_1yr'] = pd.to_numeric(df['return_1yr'], errors='coerce')
-df = df.dropna(subset=['return_1yr'])
+df = load_data()
 
 # Sidebar filters
-selected_category = st.selectbox("Select Category", sorted(df['category'].unique()))
-df_category = df[df['category'] == selected_category]
+st.sidebar.header("🔎 Filters")
+category = st.sidebar.selectbox("Select Category", sorted(df['category'].unique()))
+df_cat = df[df['category'] == category]
 
-selected_amc = st.selectbox("Select AMC", sorted(df_category['AMC_name'].unique()))
-df_filtered = df_category[df_category['AMC_name'] == selected_amc]
+amc = st.sidebar.selectbox("Select AMC", sorted(df_cat['AMC_name'].unique()))
+df_amc = df_cat[df_cat['AMC_name'] == amc]
+
+# Search for Mutual Fund
+search_query = st.sidebar.text_input("🔍 Search Mutual Fund Name")
+
+if search_query:
+    df_filtered = df_amc[df_amc['Mutual Fund Name'].str.contains(search_query, case=False, na=False)]
+else:
+    df_filtered = df_amc.copy()
+
+# Limit number of top funds
+top_n = st.sidebar.slider("Top N Funds by Return", min_value=1, max_value=30, value=10)
+sort_order = st.sidebar.radio("Sort by Return", options=["Descending", "Ascending"])
+
+# Sort and limit
+df_filtered = df_filtered.sort_values(by='return_1yr', ascending=(sort_order == "Ascending"))
+df_filtered = df_filtered.head(top_n)
+
+# Display
+st.markdown(f"### 🏢 {amc} – {category} Category")
+st.markdown(f"Showing top **{top_n}** funds based on **1-Year Return**")
 
 # Plot
 if df_filtered.empty:
-    st.warning("No mutual funds found for this combination.")
+    st.warning("No results found with current filters/search.")
 else:
-    st.subheader(f"1-Year Returns for '{selected_amc}' in '{selected_category}'")
-    fig, ax = plt.subplots(figsize=(12, 6))
-    sb.barplot(data=df_filtered, x='Mutual Fund Name', y='return_1yr', palette='hot', ax=ax)
+    fig, ax = plt.subplots(figsize=(14, 6))
+    sb.barplot(data=df_filtered, x='Mutual Fund Name', y='return_1yr', palette='flare', ax=ax)
     plt.xticks(rotation=90)
-    plt.ylabel("Return (1 Year %)")
+    plt.ylabel("1-Year Return (%)")
+    plt.xlabel("")
     st.pyplot(fig)
+
+    # Show data
+    with st.expander("🔍 View Table Data"):
+        st.dataframe(df_filtered[['Mutual Fund Name', 'return_1yr']].reset_index(drop=True))
+
+    # Download filtered data
+    csv = df_filtered.to_csv(index=False).encode('utf-8')
+    st.download_button("📥 Download Filtered Data as CSV", csv, file_name='filtered_mutual_funds.csv', mime='text/csv')
