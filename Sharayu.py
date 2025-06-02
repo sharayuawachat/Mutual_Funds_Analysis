@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sb
 
 # Load your dataset (replace with actual file path or uploader)
-df = pd.read_csv("your_dataset.csv")  # Update with your file name
+df = pd.read_csv("mutual_funds_india.csv")  # Update with your file name
 
 st.title("Mutual Fund Return Visualizer")
 
